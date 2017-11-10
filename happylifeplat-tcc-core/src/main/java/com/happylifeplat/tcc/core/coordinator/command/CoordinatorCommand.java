@@ -19,12 +19,13 @@
 package com.happylifeplat.tcc.core.coordinator.command;
 
 
-import com.happylifeplat.tcc.common.enums.CoordinatorActionEnum;
-import com.happylifeplat.tcc.core.bean.entity.TccTransaction;
 import com.happylifeplat.tcc.core.coordinator.CoordinatorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+/**
+ * @author xiaoyu
+ */
 @Component
 public class CoordinatorCommand implements Command {
 

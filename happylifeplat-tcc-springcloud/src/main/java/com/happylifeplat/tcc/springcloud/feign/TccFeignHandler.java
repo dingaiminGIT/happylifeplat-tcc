@@ -20,9 +20,9 @@ package com.happylifeplat.tcc.springcloud.feign;
 import com.happylifeplat.tcc.annotation.Tcc;
 import com.happylifeplat.tcc.annotation.TccPatternEnum;
 import com.happylifeplat.tcc.common.enums.TccActionEnum;
-import com.happylifeplat.tcc.core.bean.context.TccTransactionContext;
-import com.happylifeplat.tcc.core.bean.entity.Participant;
-import com.happylifeplat.tcc.core.bean.entity.TccInvocation;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
+import com.happylifeplat.tcc.common.bean.entity.Participant;
+import com.happylifeplat.tcc.common.bean.entity.TccInvocation;
 import com.happylifeplat.tcc.core.concurrent.threadlocal.TransactionContextLocal;
 import com.happylifeplat.tcc.core.helper.SpringBeanUtils;
 import com.happylifeplat.tcc.core.service.handler.TccTransactionManager;
@@ -37,6 +37,9 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * @author xiaoyu
+ */
 public class TccFeignHandler implements InvocationHandler {
     /**
      * logger
@@ -46,6 +49,7 @@ public class TccFeignHandler implements InvocationHandler {
     private Target<?> target;
     private Map<Method, MethodHandler> handlers;
 
+    @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         if (Object.class.equals(method.getDeclaringClass())) {
             return method.invoke(this, args);

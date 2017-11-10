@@ -19,9 +19,9 @@
 package com.happylifeplat.tcc.dubbo.interceptor;
 
 import com.alibaba.dubbo.rpc.RpcContext;
+import com.happylifeplat.tcc.common.constant.CommonConstant;
 import com.happylifeplat.tcc.common.utils.GsonUtils;
-import com.happylifeplat.tcc.core.bean.Constant;
-import com.happylifeplat.tcc.core.bean.context.TccTransactionContext;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
 import com.happylifeplat.tcc.core.interceptor.TccTransactionInterceptor;
 import com.happylifeplat.tcc.core.service.TccTransactionAspectService;
 import org.apache.commons.lang3.StringUtils;
@@ -29,6 +29,9 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+/**
+ * @author xiaoyu
+ */
 @Component
 public class DubboTccTransactionInterceptor implements TccTransactionInterceptor {
 
@@ -42,7 +45,7 @@ public class DubboTccTransactionInterceptor implements TccTransactionInterceptor
 
     @Override
     public Object interceptor(ProceedingJoinPoint pjp) throws Throwable {
-        final String context = RpcContext.getContext().getAttachment(Constant.TCC_TRANSACTION_CONTEXT);
+        final String context = RpcContext.getContext().getAttachment(CommonConstant.TCC_TRANSACTION_CONTEXT);
         TccTransactionContext tccTransactionContext = null;
         if (StringUtils.isNoneBlank(context)) {
             tccTransactionContext =

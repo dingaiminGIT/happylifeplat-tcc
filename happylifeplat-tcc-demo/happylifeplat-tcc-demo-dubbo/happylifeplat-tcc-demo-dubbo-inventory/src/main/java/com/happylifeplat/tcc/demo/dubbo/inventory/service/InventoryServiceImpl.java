@@ -31,6 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+/**
+ * @author xiaoyu
+ */
 @Service("inventoryService")
 public class InventoryServiceImpl implements InventoryService {
 
@@ -78,7 +81,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Tcc(confirmMethod = "confirmMethod", cancelMethod = "cancelMethod")
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Boolean mockWithTryTimeout(InventoryDTO inventoryDTO) {
         try {
             //模拟延迟 当前线程暂停10秒
@@ -98,7 +101,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Tcc(confirmMethod = "confirmMethodException", cancelMethod = "cancelMethod")
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public String mockWithConfirmException(InventoryDTO inventoryDTO) {
         final Inventory entity = inventoryMapper.findByProductId(inventoryDTO.getProductId());
         entity.setTotalInventory(entity.getTotalInventory() - inventoryDTO.getCount());
@@ -113,7 +116,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Tcc(confirmMethod = "confirmMethodTimeout", cancelMethod = "cancelMethod")
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Boolean mockWithConfirmTimeout(InventoryDTO inventoryDTO) {
         LOGGER.info("==========调用扣减库存确认方法mockWithConfirmTimeout===========");
         final Inventory entity = inventoryMapper.findByProductId(inventoryDTO.getProductId());
@@ -127,7 +130,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Boolean confirmMethodTimeout(InventoryDTO inventoryDTO) {
 
         try {
@@ -148,7 +151,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Boolean confirmMethodException(InventoryDTO inventoryDTO) {
 
         LOGGER.info("==========调用扣减库存确认方法===========");
@@ -169,7 +172,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Boolean confirmMethod(InventoryDTO inventoryDTO) {
 
         LOGGER.info("==========调用扣减库存确认方法===========");
@@ -179,12 +182,19 @@ public class InventoryServiceImpl implements InventoryService {
 
         entity.setLockInventory(entity.getLockInventory() - inventoryDTO.getCount());
 
-        inventoryMapper.decrease(entity);
+
+        final int rows = inventoryMapper.confirm(entity);
+
+
+        if (rows != 1) {
+            throw new TccRuntimeException("确认库存操作失败！");
+        }
+
         return true;
 
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Boolean cancelMethod(InventoryDTO inventoryDTO) {
 
         LOGGER.info("==========调用扣减库存取消方法===========");
@@ -195,7 +205,12 @@ public class InventoryServiceImpl implements InventoryService {
 
         entity.setLockInventory(entity.getLockInventory() - inventoryDTO.getCount());
 
-        inventoryMapper.decrease(entity);
+        int rows= inventoryMapper.cancel(entity);
+
+
+        if (rows != 1) {
+            throw new TccRuntimeException("取消库存操作失败！");
+        }
 
         return true;
 

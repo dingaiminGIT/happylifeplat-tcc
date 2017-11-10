@@ -20,9 +20,12 @@ package com.happylifeplat.tcc.core.coordinator;
 
 
 import com.happylifeplat.tcc.common.config.TccConfig;
-import com.happylifeplat.tcc.core.bean.entity.TccTransaction;
+import com.happylifeplat.tcc.common.bean.entity.TccTransaction;
 import com.happylifeplat.tcc.core.coordinator.command.CoordinatorAction;
 
+/**
+ * @author xiaoyu
+ */
 public interface CoordinatorService {
 
     /**
@@ -41,6 +44,12 @@ public interface CoordinatorService {
      */
     String save(TccTransaction tccTransaction);
 
+    /**
+     * 根据事务id获取TccTransaction
+     *
+     * @param transId 事务id
+     * @return TccTransaction
+     */
     TccTransaction findByTransId(String transId);
 
 
@@ -60,10 +69,19 @@ public interface CoordinatorService {
      */
     void update(TccTransaction tccTransaction);
 
+
+    /**
+     * 更新 List<Participant>  只更新这一个字段数据
+     * @param tccTransaction  实体对象
+     * @return rows
+     */
+    int updateParticipant(TccTransaction tccTransaction);
+
     /**
      * 提交补偿操作
      *
      * @param coordinatorAction 执行动作
+     * @return true 成功
      */
     Boolean submit(CoordinatorAction coordinatorAction);
 }

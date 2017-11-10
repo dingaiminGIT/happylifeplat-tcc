@@ -19,9 +19,8 @@
 package com.happylifeplat.tcc.core.service.handler;
 
 import com.happylifeplat.tcc.common.enums.TccActionEnum;
-import com.happylifeplat.tcc.common.exception.TccRuntimeException;
-import com.happylifeplat.tcc.core.bean.context.TccTransactionContext;
-import com.happylifeplat.tcc.core.bean.entity.TccTransaction;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
+import com.happylifeplat.tcc.common.bean.entity.TccTransaction;
 import com.happylifeplat.tcc.core.service.TccTransactionHandler;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -30,6 +29,9 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 
+/**
+ * @author xiaoyu
+ */
 @Component
 public class ProviderTccTransactionHandler implements TccTransactionHandler {
 
@@ -43,7 +45,7 @@ public class ProviderTccTransactionHandler implements TccTransactionHandler {
 
 
     /**
-     * 分布式事务处理接口
+     * 分布式事务提供者处理接口
      * 根据tcc事务上下文的状态来执行相对应的方法
      *
      * @param point   point 切点
@@ -59,7 +61,7 @@ public class ProviderTccTransactionHandler implements TccTransactionHandler {
                 case TRYING:
                     try {
                         //创建事务信息
-                        tccTransaction = tccTransactionManager.providerBegin(context);
+                        tccTransaction = tccTransactionManager.providerBegin(context,point);
                         //发起方法调用
                         return point.proceed();
                     } catch (Throwable throwable) {

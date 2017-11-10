@@ -18,15 +18,19 @@
 package com.happylifeplat.tcc.core.spi.repository;
 
 import com.google.common.collect.Lists;
+import com.happylifeplat.tcc.common.bean.adapter.CoordinatorRepositoryAdapter;
 import com.happylifeplat.tcc.common.config.TccConfig;
 import com.happylifeplat.tcc.common.config.TccZookeeperConfig;
-import com.happylifeplat.tcc.core.bean.entity.TccTransaction;
+import com.happylifeplat.tcc.common.bean.entity.TccTransaction;
 import com.happylifeplat.tcc.common.enums.RepositorySupportEnum;
 import com.happylifeplat.tcc.common.exception.TccException;
 import com.happylifeplat.tcc.common.exception.TccRuntimeException;
+import com.happylifeplat.tcc.common.utils.DateUtils;
 import com.happylifeplat.tcc.common.utils.LogUtil;
+import com.happylifeplat.tcc.common.utils.RepositoryConvertUtils;
+import com.happylifeplat.tcc.common.utils.RepositoryPathUtils;
 import com.happylifeplat.tcc.core.spi.CoordinatorRepository;
-import com.happylifeplat.tcc.core.spi.ObjectSerializer;
+import com.happylifeplat.tcc.common.serializer.ObjectSerializer;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -45,6 +49,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 
+/**
+ * @author xiaoyu
+ */
 public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
 
     /**
@@ -54,18 +61,13 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
 
     private ObjectSerializer objectSerializer;
 
-    private String rootPath = "/tcc";
+    private String rootPathPrefix = "/tcc";
 
-    private String modelName;
 
     private static volatile ZooKeeper zooKeeper;
 
-    private static final CountDownLatch countDownLatch = new CountDownLatch(1);
+    private static final CountDownLatch LATCH = new CountDownLatch(1);
 
-
-    public void setRootPath(String rootPath) {
-        this.rootPath = rootPath;
-    }
 
     /**
      * 创建本地事务对象
@@ -77,14 +79,15 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
     @Override
     public int create(TccTransaction tccTransaction) {
         try {
-            zooKeeper.create(getRootPath(tccTransaction.getTransId()),
-                    objectSerializer.serialize(tccTransaction),
+            zooKeeper.create(buildRootPath(tccTransaction.getTransId()),
+                    RepositoryConvertUtils.convert(tccTransaction, objectSerializer),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             return 1;
         } catch (Exception e) {
             throw new TccRuntimeException(e);
         }
     }
+
 
     /**
      * 删除对象
@@ -96,7 +99,7 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
     public int remove(String id) {
         try {
             final TccTransaction byId = findById(id);
-            zooKeeper.delete(getRootPath(id), -1);
+            zooKeeper.delete(buildRootPath(id), -1);
             return 1;
         } catch (Exception e) {
             throw new TccRuntimeException(e);
@@ -114,12 +117,38 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
         try {
             tccTransaction.setLastTime(new Date());
             tccTransaction.setVersion(tccTransaction.getVersion() + 1);
-            zooKeeper.setData(getRootPath(tccTransaction.getTransId()),
-                    objectSerializer.serialize(tccTransaction), -1);
+            zooKeeper.setData(buildRootPath(tccTransaction.getTransId()),
+                    RepositoryConvertUtils.convert(tccTransaction, objectSerializer), -1);
             return 1;
         } catch (Exception e) {
             throw new TccRuntimeException(e);
         }
+    }
+
+    /**
+     * 更新 List<Participant>  只更新这一个字段数据
+     *
+     * @param tccTransaction 实体对象
+     */
+    @Override
+    public int updateParticipant(TccTransaction tccTransaction) {
+
+        final String path = RepositoryPathUtils.buildZookeeperRootPath(rootPathPrefix, tccTransaction.getTransId());
+        try {
+            byte[] content = zooKeeper.getData(path,
+                    false, new Stat());
+            final CoordinatorRepositoryAdapter adapter = objectSerializer.deSerialize(content, CoordinatorRepositoryAdapter.class);
+
+            adapter.setContents(objectSerializer.serialize(tccTransaction.getParticipants()));
+            zooKeeper.create(path,
+                    objectSerializer.serialize(adapter),
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+
     }
 
     /**
@@ -132,8 +161,8 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
     public TccTransaction findById(String id) {
         try {
             Stat stat = new Stat();
-            byte[] content = zooKeeper.getData(getRootPath(id), false, stat);
-            return objectSerializer.deSerialize(content, TccTransaction.class);
+            byte[] content = zooKeeper.getData(buildRootPath(id), false, stat);
+            return RepositoryConvertUtils.transformBean(content, objectSerializer);
         } catch (Exception e) {
             throw new TccRuntimeException(e);
         }
@@ -150,7 +179,7 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
 
         List<String> zNodePaths;
         try {
-            zNodePaths = zooKeeper.getChildren(rootPath, false);
+            zNodePaths = zooKeeper.getChildren(rootPathPrefix, false);
         } catch (Exception e) {
             throw new TccRuntimeException(e);
         }
@@ -159,8 +188,8 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
                     .filter(StringUtils::isNoneBlank)
                     .map(zNodePath -> {
                         try {
-                            byte[] content = zooKeeper.getData(getRootPath(zNodePath), false, new Stat());
-                            return objectSerializer.deSerialize(content, TccTransaction.class);
+                            byte[] content = zooKeeper.getData(buildRootPath(zNodePath), false, new Stat());
+                            return RepositoryConvertUtils.transformBean(content, objectSerializer);
                         } catch (KeeperException | InterruptedException | TccException e) {
                             e.printStackTrace();
                         }
@@ -191,15 +220,7 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
      */
     @Override
     public void init(String modelName, TccConfig tccConfig) {
-        this.modelName = modelName;
-        final String zkRootPath = tccConfig.getTccZookeeperConfig().getRootPath();
-        if (StringUtils.isNoneBlank(zkRootPath)) {
-            String path = String.join("_", zkRootPath, modelName);
-            setRootPath(path);
-        } else {
-            setRootPath(String.join("_", this.rootPath, modelName));
-        }
-
+        rootPathPrefix = RepositoryPathUtils.buildZookeeperPathPrefix(modelName);
         try {
             connect(tccConfig.getTccZookeeperConfig());
         } catch (Exception e) {
@@ -215,13 +236,13 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
             zooKeeper = new ZooKeeper(config.getHost(), config.getSessionTimeOut(), watchedEvent -> {
                 if (watchedEvent.getState() == Watcher.Event.KeeperState.SyncConnected) {
                     // 放开闸门, wait在connect方法上的线程将被唤醒
-                    countDownLatch.countDown();
+                    LATCH.countDown();
                 }
             });
-            countDownLatch.await();
-            Stat stat = zooKeeper.exists(rootPath, false);
+            LATCH.await();
+            Stat stat = zooKeeper.exists(rootPathPrefix, false);
             if (stat == null) {
-                zooKeeper.create(rootPath, rootPath.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                zooKeeper.create(rootPathPrefix, rootPathPrefix.getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
         } catch (Exception e) {
             throw new TccRuntimeException(e);
@@ -250,13 +271,7 @@ public class ZookeeperCoordinatorRepository implements CoordinatorRepository {
         this.objectSerializer = objectSerializer;
     }
 
-    private String getParentPath() {
-        return String.join("/", rootPath, modelName);
+    private String buildRootPath(String id) {
+        return RepositoryPathUtils.buildZookeeperRootPath(rootPathPrefix, id);
     }
-
-    private String getRootPath(String id) {
-        return String.join("/", rootPath, id);
-    }
-
-
 }

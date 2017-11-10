@@ -18,23 +18,25 @@
 package com.happylifeplat.tcc.core.helper;
 
 
+import com.happylifeplat.tcc.common.utils.DbTypeUtils;
+
+/**
+ * @author xiaoyu
+ */
 public class SqlHelper {
 
 
     public static String buildCreateTableSql(String driverClassName, String tableName) {
         String createTableSql;
-        String dbType = "mysql";
-        if (driverClassName.contains("mysql")) {
-            dbType = "mysql";
-        } else if (driverClassName.contains("sqlserver")) {
-            dbType = "sqlserver";
-        } else if (driverClassName.contains("oracle")) {
-            dbType = "oracle";
-        }
+        String dbType = DbTypeUtils.buildByDriverClassName(driverClassName);
         switch (dbType) {
             case "mysql": {
                 createTableSql = "CREATE TABLE `" + tableName + "` (\n" +
                         "  `trans_id` varchar(64) NOT NULL,\n" +
+                        "  `target_class` varchar(256) ,\n" +
+                        "  `target_method` varchar(128) ,\n" +
+                        "  `confirm_method` varchar(128) ,\n" +
+                        "  `cancel_method` varchar(128) ,\n" +
                         "  `retried_count` int(3) NOT NULL,\n" +
                         "  `create_time` datetime NOT NULL,\n" +
                         "  `last_time` datetime NOT NULL,\n" +
@@ -50,6 +52,10 @@ public class SqlHelper {
             case "oracle": {
                 createTableSql = "CREATE TABLE `" + tableName + "` (\n" +
                         "  `trans_id` varchar(64) NOT NULL,\n" +
+                        "  `target_class` varchar(256) ,\n" +
+                        "  `target_method` varchar(128) ,\n" +
+                        "  `confirm_method` varchar(128) ,\n" +
+                        "  `cancel_method` varchar(128) ,\n" +
                         "  `retried_count` int(3) NOT NULL,\n" +
                         "  `create_time` date NOT NULL,\n" +
                         "  `last_time` date NOT NULL,\n" +
@@ -65,6 +71,10 @@ public class SqlHelper {
             case "sqlserver": {
                 createTableSql = "CREATE TABLE `" + tableName + "` (\n" +
                         "  `trans_id` varchar(64) NOT NULL,\n" +
+                        "  `target_class` varchar(256) ,\n" +
+                        "  `target_method` varchar(128) ,\n" +
+                        "  `confirm_method` varchar(128) ,\n" +
+                        "  `cancel_method` varchar(128) ,\n" +
                         "  `retried_count` int(3) NOT NULL,\n" +
                         "  `create_time` datetime NOT NULL,\n" +
                         "  `last_time` datetime NOT NULL,\n" +

@@ -17,13 +17,11 @@
  */
 package com.happylifeplat.tcc.springcloud.interceptor;
 
+import com.happylifeplat.tcc.common.constant.CommonConstant;
 import com.happylifeplat.tcc.common.utils.GsonUtils;
-import com.happylifeplat.tcc.core.bean.Constant;
-import com.happylifeplat.tcc.core.bean.context.TccTransactionContext;
-import com.happylifeplat.tcc.core.concurrent.threadlocal.TransactionContextLocal;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
 import com.happylifeplat.tcc.core.interceptor.TccTransactionInterceptor;
 import com.happylifeplat.tcc.core.service.TccTransactionAspectService;
-import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -33,6 +31,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 
+/**
+ * @author xiaoyu
+ */
 @Component
 public class SpringCloudTxTransactionInterceptor implements TccTransactionInterceptor {
 
@@ -50,7 +51,7 @@ public class SpringCloudTxTransactionInterceptor implements TccTransactionInterc
         //如果不是本地反射调用补偿
         RequestAttributes requestAttributes = RequestContextHolder.currentRequestAttributes();
         HttpServletRequest request = requestAttributes == null ? null : ((ServletRequestAttributes) requestAttributes).getRequest();
-        String context = request == null ? null : request.getHeader(Constant.TCC_TRANSACTION_CONTEXT);
+        String context = request == null ? null : request.getHeader(CommonConstant.TCC_TRANSACTION_CONTEXT);
         tccTransactionContext =
                 GsonUtils.getInstance().fromJson(context, TccTransactionContext.class);
 

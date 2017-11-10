@@ -19,13 +19,17 @@ package com.happylifeplat.tcc.core.spi;
 
 
 import com.happylifeplat.tcc.common.config.TccConfig;
-import com.happylifeplat.tcc.core.bean.entity.TccTransaction;
+import com.happylifeplat.tcc.common.serializer.ObjectSerializer;
+import com.happylifeplat.tcc.common.bean.entity.TccTransaction;
 import com.happylifeplat.tcc.common.exception.TccRuntimeException;
 
 import java.util.Date;
 import java.util.List;
 
 
+/**
+ * @author xiaoyu
+ */
 public interface CoordinatorRepository {
 
     /**
@@ -52,6 +56,14 @@ public interface CoordinatorRepository {
      * @return rows 1 成功 0 失败 失败需要抛异常
      */
     int update(TccTransaction tccTransaction);
+
+
+    /**
+     * 更新 List<Participant>  只更新这一个字段数据
+     * @param tccTransaction  实体对象
+     * @return rows 1 成功 0 失败
+     */
+    int updateParticipant(TccTransaction tccTransaction);
 
     /**
      * 根据id获取对象
@@ -83,6 +95,7 @@ public interface CoordinatorRepository {
      *
      * @param modelName 模块名称
      * @param tccConfig 配置信息
+     * @throws TccRuntimeException 自定义异常
      */
     void init(String modelName, TccConfig tccConfig) throws TccRuntimeException;
 

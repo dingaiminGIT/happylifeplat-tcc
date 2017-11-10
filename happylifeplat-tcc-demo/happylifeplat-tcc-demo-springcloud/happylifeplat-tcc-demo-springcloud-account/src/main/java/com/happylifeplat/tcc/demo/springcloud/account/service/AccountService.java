@@ -21,6 +21,9 @@ package com.happylifeplat.tcc.demo.springcloud.account.service;
 import com.happylifeplat.tcc.annotation.Tcc;
 import com.happylifeplat.tcc.demo.springcloud.account.dto.AccountDTO;
 
+/**
+ * @author xiaoyu
+ */
 public interface AccountService {
 
 

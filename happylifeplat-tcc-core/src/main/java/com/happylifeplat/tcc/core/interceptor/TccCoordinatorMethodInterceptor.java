@@ -21,9 +21,9 @@ package com.happylifeplat.tcc.core.interceptor;
 import com.happylifeplat.tcc.annotation.Tcc;
 import com.happylifeplat.tcc.annotation.TccPatternEnum;
 import com.happylifeplat.tcc.common.enums.TccActionEnum;
-import com.happylifeplat.tcc.core.bean.entity.Participant;
-import com.happylifeplat.tcc.core.bean.entity.TccInvocation;
-import com.happylifeplat.tcc.core.bean.entity.TccTransaction;
+import com.happylifeplat.tcc.common.bean.entity.Participant;
+import com.happylifeplat.tcc.common.bean.entity.TccInvocation;
+import com.happylifeplat.tcc.common.bean.entity.TccTransaction;
 import com.happylifeplat.tcc.core.service.handler.TccTransactionManager;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -35,12 +35,19 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 
 
+/**
+ * @author xiaoyu
+ */
 @Component
 public class TccCoordinatorMethodInterceptor {
 
 
+    private final TccTransactionManager tccTransactionManager;
+
     @Autowired
-    private TccTransactionManager tccTransactionManager;
+    public TccCoordinatorMethodInterceptor(TccTransactionManager tccTransactionManager) {
+        this.tccTransactionManager = tccTransactionManager;
+    }
 
 
     public Object interceptor(ProceedingJoinPoint pjp) throws Throwable {
@@ -56,6 +63,8 @@ public class TccCoordinatorMethodInterceptor {
                 case CONFIRMING:
                     break;
                 case CANCELING:
+                    break;
+                default:
                     break;
             }
         }
@@ -82,16 +91,8 @@ public class TccCoordinatorMethodInterceptor {
         //获取协调方法
         String confirmMethodName = tcc.confirmMethod();
 
-       /* if (StringUtils.isBlank(confirmMethodName)) {
-            confirmMethodName = method.getName();
-        }*/
-
         String cancelMethodName = tcc.cancelMethod();
 
-       /* if (StringUtils.isBlank(cancelMethodName)) {
-            cancelMethodName = method.getName();
-        }
-*/
         //设置模式
         final TccPatternEnum pattern = tcc.pattern();
 

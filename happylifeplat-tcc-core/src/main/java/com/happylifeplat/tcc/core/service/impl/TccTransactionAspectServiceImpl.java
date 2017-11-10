@@ -18,7 +18,7 @@
 
 package com.happylifeplat.tcc.core.service.impl;
 
-import com.happylifeplat.tcc.core.bean.context.TccTransactionContext;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
 import com.happylifeplat.tcc.core.helper.SpringBeanUtils;
 import com.happylifeplat.tcc.core.service.TccTransactionAspectService;
 import com.happylifeplat.tcc.core.service.TccTransactionFactoryService;
@@ -28,12 +28,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
+/**
+ * @author xiaoyu
+ */
 @Service("tccTransactionAspectService")
 @SuppressWarnings("unchecked")
 public class TccTransactionAspectServiceImpl implements TccTransactionAspectService {
 
+    private final TccTransactionFactoryService tccTransactionFactoryService;
+
     @Autowired
-    private TccTransactionFactoryService tccTransactionFactoryService;
+    public TccTransactionAspectServiceImpl(TccTransactionFactoryService tccTransactionFactoryService) {
+        this.tccTransactionFactoryService = tccTransactionFactoryService;
+    }
 
     /**
      * tcc 事务切面服务

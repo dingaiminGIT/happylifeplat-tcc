@@ -27,8 +27,8 @@ import com.happylifeplat.tcc.core.coordinator.CoordinatorService;
 import com.happylifeplat.tcc.core.helper.SpringBeanUtils;
 import com.happylifeplat.tcc.core.service.TccInitService;
 import com.happylifeplat.tcc.core.spi.CoordinatorRepository;
-import com.happylifeplat.tcc.core.spi.ObjectSerializer;
-import com.happylifeplat.tcc.core.spi.ServiceBootstrap;
+import com.happylifeplat.tcc.common.serializer.ObjectSerializer;
+import com.happylifeplat.tcc.common.utils.ServiceBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +40,9 @@ import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
 
+/**
+ * @author xiaoyu
+ */
 @Service("tccInitService")
 public class TccInitServiceImpl implements TccInitService {
 
@@ -65,11 +68,12 @@ public class TccInitServiceImpl implements TccInitService {
     public void initialization(TccConfig tccConfig) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.error("系统关闭")));
         try {
-            LoadSpiSupport(tccConfig);
+            loadSpiSupport(tccConfig);
             coordinatorService.start(tccConfig);
         } catch (Exception ex) {
             LogUtil.error(LOGGER, "tcc事务初始化异常:{}", ex::getMessage);
-            System.exit(1);//非正常关闭
+            //非正常关闭
+            System.exit(1);
         }
         LogUtil.info(LOGGER, () -> "Tcc事务初始化成功！");
     }
@@ -79,7 +83,7 @@ public class TccInitServiceImpl implements TccInitService {
      *
      * @param tccConfig 配置信息
      */
-    private void LoadSpiSupport(TccConfig tccConfig) {
+    private void loadSpiSupport(TccConfig tccConfig) {
 
         //spi  serialize
         final SerializeEnum serializeEnum =

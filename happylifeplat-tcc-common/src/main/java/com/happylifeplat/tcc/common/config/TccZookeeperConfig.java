@@ -18,35 +18,17 @@
 package com.happylifeplat.tcc.common.config;
 
 
+import lombok.Data;
+
+/**
+ * @author xiaoyu
+ */
+@Data
 public class TccZookeeperConfig {
 
     private String host;
 
     private int sessionTimeOut = 1000;
 
-    private String rootPath = "/tx";
-
-    public String getHost() {
-        return host;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public int getSessionTimeOut() {
-        return sessionTimeOut;
-    }
-
-    public void setSessionTimeOut(int sessionTimeOut) {
-        this.sessionTimeOut = sessionTimeOut;
-    }
-
-    public String getRootPath() {
-        return rootPath;
-    }
-
-    public void setRootPath(String rootPath) {
-        this.rootPath = rootPath;
-    }
+    private String rootPath = "/tcc";
 }

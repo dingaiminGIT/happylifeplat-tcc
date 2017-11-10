@@ -18,18 +18,27 @@
 
 package com.happylifeplat.tcc.core.service.handler;
 
-import com.happylifeplat.tcc.core.bean.context.TccTransactionContext;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
 import com.happylifeplat.tcc.core.service.TccTransactionHandler;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
+
+/**
+ * @author xiaoyu
+ */
 @Component
 public class StartTccTransactionHandler implements TccTransactionHandler {
 
 
     private final TccTransactionManager tccTransactionManager;
+
+
+    private static final  Lock LOCK = new ReentrantLock();
 
     @Autowired
     public StartTccTransactionHandler(TccTransactionManager tccTransactionManager) {
@@ -48,7 +57,8 @@ public class StartTccTransactionHandler implements TccTransactionHandler {
     public Object handler(ProceedingJoinPoint point, TccTransactionContext context) throws Throwable {
         Object returnValue;
         try {
-            tccTransactionManager.begin();
+            LOCK.lock();
+            tccTransactionManager.begin(point);
             try {
                 //发起调用 执行try方法
                 returnValue = point.proceed();
@@ -64,6 +74,7 @@ public class StartTccTransactionHandler implements TccTransactionHandler {
             tccTransactionManager.confirm();
         } finally {
             tccTransactionManager.remove();
+            LOCK.unlock();
         }
         return returnValue;
     }

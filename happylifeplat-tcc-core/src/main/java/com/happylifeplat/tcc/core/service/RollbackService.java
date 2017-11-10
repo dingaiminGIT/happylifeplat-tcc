@@ -18,10 +18,13 @@
 
 package com.happylifeplat.tcc.core.service;
 
-import com.happylifeplat.tcc.core.bean.entity.Participant;
+import com.happylifeplat.tcc.common.bean.entity.Participant;
 
 import java.util.List;
 
+/**
+ * @author xiaoyu
+ */
 public interface RollbackService {
 
 
