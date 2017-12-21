@@ -160,7 +160,19 @@ public class CoordinatorServiceImpl implements CoordinatorService {
      */
     @Override
     public int updateParticipant(TccTransaction tccTransaction) {
-        return  coordinatorRepository.updateParticipant(tccTransaction);
+        return coordinatorRepository.updateParticipant(tccTransaction);
+    }
+
+    /**
+     * 更新补偿数据状态
+     *
+     * @param id     事务id
+     * @param status 状态
+     * @return rows 1 成功 0 失败
+     */
+    @Override
+    public int updateStatus(String id, Integer status) {
+        return coordinatorRepository.updateStatus(id, status);
     }
 
     /**
@@ -231,7 +243,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
 
     private void scheduledRollBack() {
         scheduledExecutorService
-                .scheduleAtFixedRate(() -> {
+                .scheduleWithFixedDelay(() -> {
                     LogUtil.debug(LOGGER, "rollback execute delayTime:{}", () -> tccConfig.getScheduledDelay());
                     try {
                         final List<TccTransaction> tccTransactions =
@@ -239,6 +251,12 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                         if (CollectionUtils.isNotEmpty(tccTransactions)) {
 
                             for (TccTransaction tccTransaction : tccTransactions) {
+
+                                //如果try未执行完成，那么就不进行补偿 （防止在try阶段的各种异常情况）
+                                if (tccTransaction.getRole() == TccRoleEnum.PROVIDER.getCode() &&
+                                        tccTransaction.getStatus() == TccActionEnum.PRE_TRY.getCode()) {
+                                    continue;
+                                }
 
                                 if (tccTransaction.getRetriedCount() > tccConfig.getRetryMax()) {
                                     LogUtil.error(LOGGER, "此事务超过了最大重试次数，不再进行重试：{}",
@@ -250,9 +268,11 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                                     continue;
                                 }
 
-                                //如果事务角色是提供者的话，只能由发起者执行
-                                if (tccTransaction.getRole() == TccRoleEnum.PROVIDER.getCode()) {
-
+                                //如果事务角色是提供者的话，并且在重试的次数范围类是不能执行的，只能由发起者执行
+                                if (tccTransaction.getRole() == TccRoleEnum.PROVIDER.getCode()
+                                        && (tccTransaction.getCreateTime().getTime() +
+                                        tccConfig.getRetryMax() * tccConfig.getRecoverDelayTime() * 1000
+                                        > System.currentTimeMillis())) {
                                     continue;
                                 }
 
@@ -264,6 +284,7 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                                     if (rows > 0) {
                                         //如果是以下3种状态
                                         if ((tccTransaction.getStatus() == TccActionEnum.TRYING.getCode()
+                                                || tccTransaction.getStatus() == TccActionEnum.PRE_TRY.getCode()
                                                 || tccTransaction.getStatus() == TccActionEnum.CANCELING.getCode())) {
                                             cancel(tccTransaction);
                                         } else if (tccTransaction.getStatus() == TccActionEnum.CONFIRMING.getCode()) {
@@ -296,15 +317,16 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                     context.setAction(TccActionEnum.CANCELING.getCode());
                     context.setTransId(tccTransaction.getTransId());
                     TransactionContextLocal.getInstance().set(context);
-                    executeCoordinator(participant.getConfirmTccInvocation());
+                    executeCoordinator(participant.getCancelTccInvocation());
                 } catch (Exception e) {
                     LogUtil.error(LOGGER, "执行cancel方法异常:{}", () -> e);
                     success = false;
                     failList.add(participant);
                 }
             }
+            executeHandler(success, tccTransaction, failList);
         }
-        executeHandler(success, tccTransaction, failList);
+
     }
 
     private void confirm(TccTransaction tccTransaction) {
@@ -327,13 +349,14 @@ public class CoordinatorServiceImpl implements CoordinatorService {
                     failList.add(participant);
                 }
             }
+            executeHandler(success, tccTransaction, failList);
         }
-        executeHandler(success, tccTransaction, failList);
+
     }
 
 
     private void executeHandler(boolean success, final TccTransaction currentTransaction,
-                                List<Participant> failList ) {
+                                List<Participant> failList) {
         if (success) {
             coordinatorRepository.remove(currentTransaction.getTransId());
         } else {

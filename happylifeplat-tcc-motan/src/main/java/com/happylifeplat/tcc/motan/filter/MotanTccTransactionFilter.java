@@ -1,109 +1,109 @@
-/*
- *
- * Copyright 2017-2018 549477611@qq.com(xiaoyu)
- *
- * This copyrighted material is made available to anyone wishing to use, modify,
- * copy, or redistribute it subject to the terms and conditions of the GNU
- * Lesser General Public License, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License
- * for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this distribution; if not, see <http://www.gnu.org/licenses/>.
- *
- */
-
-package com.happylifeplat.tcc.dubbo.filter;
+package com.happylifeplat.tcc.motan.filter;
 
 
-import com.alibaba.dubbo.common.Constants;
-import com.alibaba.dubbo.common.extension.Activate;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcContext;
-import com.alibaba.dubbo.rpc.RpcException;
+
 import com.happylifeplat.tcc.annotation.Tcc;
 import com.happylifeplat.tcc.annotation.TccPatternEnum;
+import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
+import com.happylifeplat.tcc.common.bean.entity.Participant;
+import com.happylifeplat.tcc.common.bean.entity.TccInvocation;
 import com.happylifeplat.tcc.common.constant.CommonConstant;
 import com.happylifeplat.tcc.common.enums.TccActionEnum;
 import com.happylifeplat.tcc.common.exception.TccRuntimeException;
 import com.happylifeplat.tcc.common.utils.GsonUtils;
-import com.happylifeplat.tcc.common.bean.context.TccTransactionContext;
-import com.happylifeplat.tcc.common.bean.entity.Participant;
-import com.happylifeplat.tcc.common.bean.entity.TccInvocation;
 import com.happylifeplat.tcc.core.concurrent.threadlocal.TransactionContextLocal;
+import com.happylifeplat.tcc.core.helper.SpringBeanUtils;
 import com.happylifeplat.tcc.core.service.handler.TccTransactionManager;
+import com.weibo.api.motan.common.MotanConstants;
+import com.weibo.api.motan.core.extension.Activation;
+import com.weibo.api.motan.core.extension.SpiMeta;
+import com.weibo.api.motan.filter.Filter;
+import com.weibo.api.motan.rpc.Caller;
+import com.weibo.api.motan.rpc.Request;
+import com.weibo.api.motan.rpc.Response;
+import com.weibo.api.motan.util.ReflectUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Method;
 import java.util.Objects;
+import java.util.stream.Stream;
+
 
 /**
  * @author xiaoyu
  */
-@Activate(group = {Constants.SERVER_KEY, Constants.CONSUMER})
-public class TccTransactionFilter implements Filter {
+@SpiMeta(name = "motanTccTransactionFilter")
+@Activation(key = {MotanConstants.NODE_TYPE_REFERER})
+public class MotanTccTransactionFilter implements Filter {
 
-
-    private TccTransactionManager tccTransactionManager;
-
-    public void setTccTransactionManager(TccTransactionManager tccTransactionManager) {
-        this.tccTransactionManager = tccTransactionManager;
-    }
-
+    /**
+     * 实现新浪的filter接口 rpc传参数
+     *
+     * @param caller  caller
+     * @param request 请求
+     * @return Response
+     */
     @Override
     @SuppressWarnings("unchecked")
-    public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+    public Response filter(Caller<?> caller, Request request) {
 
-        String methodName = invocation.getMethodName();
-        Class clazz = invoker.getInterface();
-        Class[] args = invocation.getParameterTypes();
-        final Object[] arguments = invocation.getArguments();
+        final String interfaceName = request.getInterfaceName();
+        final String methodName = request.getMethodName();
+        final Object[] arguments = request.getArguments();
 
+        Class[] args = null;
         Method method = null;
         Tcc tcc = null;
+        Class clazz = null;
         try {
+            //他妈的 这里还要拿方法参数类型
+            clazz = ReflectUtil.forName(interfaceName);
+            final Method[] methods = clazz.getMethods();
+            args =
+                    Stream.of(methods)
+                            .filter(m -> m.getName().equals(methodName))
+                            .findFirst()
+                            .map(Method::getParameterTypes).get();
             method = clazz.getDeclaredMethod(methodName, args);
             tcc = method.getAnnotation(Tcc.class);
-        } catch (NoSuchMethodException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
         if (Objects.nonNull(tcc)) {
+
             try {
 
                 final TccTransactionContext tccTransactionContext =
                         TransactionContextLocal.getInstance().get();
                 if (Objects.nonNull(tccTransactionContext)) {
-                    RpcContext.getContext()
+                    request
                             .setAttachment(CommonConstant.TCC_TRANSACTION_CONTEXT,
                                     GsonUtils.getInstance().toJson(tccTransactionContext));
                 }
 
-                final Result result = invoker.invoke(invocation);
+                final Response response = caller.call(request);
                 final Participant participant = buildParticipant(tccTransactionContext,tcc, method, clazz, arguments, args);
                 if (Objects.nonNull(participant)) {
-                    tccTransactionManager.enlistParticipant(participant);
+                    SpringBeanUtils.getInstance().getBean(TccTransactionManager.class).enlistParticipant(participant);
                 }
 
-                return result;
-            } catch (RpcException e) {
+                return response;
+            } catch (Exception e) {
                 e.printStackTrace();
                 throw e;
             }
         } else {
-            return invoker.invoke(invocation);
+            return caller.call(request);
         }
-
     }
 
+
     @SuppressWarnings("unchecked")
-    private Participant buildParticipant(TccTransactionContext tccTransactionContext,Tcc tcc, Method method, Class clazz, Object[] arguments, Class... args) throws TccRuntimeException {
+    private Participant buildParticipant(TccTransactionContext tccTransactionContext, Tcc tcc,
+                                         Method method, Class clazz,
+                                         Object[] arguments,
+                                         Class... args) throws TccRuntimeException {
 
         if (Objects.nonNull(tccTransactionContext)) {
             if (TccActionEnum.TRYING.getCode() == tccTransactionContext.getAction()) {
@@ -123,7 +123,8 @@ public class TccTransactionFilter implements Filter {
                 //设置模式
                 final TccPatternEnum pattern = tcc.pattern();
 
-                tccTransactionManager.getCurrentTransaction().setPattern(pattern.getCode());
+                SpringBeanUtils.getInstance().getBean(TccTransactionManager.class)
+                        .getCurrentTransaction().setPattern(pattern.getCode());
 
 
                 TccInvocation confirmInvocation = new TccInvocation(clazz,
@@ -142,9 +143,7 @@ public class TccTransactionFilter implements Filter {
             }
 
         }
-
         return null;
-
 
     }
 }
